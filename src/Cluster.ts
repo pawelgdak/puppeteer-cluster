@@ -385,21 +385,31 @@ export default class Cluster<JobData = any, ReturnData = any> extends EventEmitt
 
     private queueJob(
         data: JobData | TaskFunction<JobData, ReturnData>,
-        taskFunction?: TaskFunction<JobData, ReturnData>,
+        taskFunction?: TaskFunction<JobData, ReturnData> | Boolean,
         callbacks?: ExecuteCallbacks,
+        unshift: Boolean = false,
     ): void {
         let realData: JobData | undefined;
         let realFunction: TaskFunction<JobData, ReturnData> | undefined;
+        let realUnshift: Boolean = unshift;
         if (this.isTaskFunction(data)) {
             realFunction = data;
+            realUnshift = taskFunction as Boolean;
         } else {
             realData = data;
-            realFunction = taskFunction;
+            if (typeof realFunction === 'boolean') {
+                realUnshift = realFunction;
+                realFunction = undefined;
+            }
         }
         const job = new Job<JobData, ReturnData>(realData, realFunction, callbacks);
 
         this.allTargetCount += 1;
-        this.jobQueue.push(job);
+        if (realUnshift) {
+            this.jobQueue.unshift(job);
+        } else {
+            this.jobQueue.push(job);
+        }
         this.emit('queue', realData, realFunction);
         this.work();
     }
@@ -407,15 +417,18 @@ export default class Cluster<JobData = any, ReturnData = any> extends EventEmitt
     public async queue(
         data: JobData,
         taskFunction?: TaskFunction<JobData, ReturnData>,
+        unshift?: Boolean,
     ): Promise<void>;
     public async queue(
         taskFunction: TaskFunction<JobData, ReturnData>,
+        unshift?: Boolean,
     ): Promise<void>;
     public async queue(
         data: JobData | TaskFunction<JobData, ReturnData>,
-        taskFunction?: TaskFunction<JobData, ReturnData>,
+        taskFunction?: TaskFunction<JobData, ReturnData> | Boolean,
+        unshift?: Boolean,
     ): Promise<void> {
-        this.queueJob(data, taskFunction);
+        this.queueJob(data, taskFunction, undefined, unshift);
     }
 
     public execute(

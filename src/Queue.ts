@@ -1,5 +1,3 @@
-import { EventEmitter } from 'events';
-
 interface QueueOptions {
     delayUntil?: number;
 }
@@ -28,10 +26,24 @@ export default class Queue<T> {
         }
     }
 
+    public unshift(item: T, options: QueueOptions = {}): void {
+        if (options && options.delayUntil && options.delayUntil > Date.now()) {
+            this.delayedItems += 1;
+            setTimeout(
+                () => {
+                    this.delayedItems -= 1;
+                    this.list.push(item);
+                },
+                (options.delayUntil - Date.now()),
+            );
+        } else {
+            this.list.unshift(item);
+        }
+    }
+
     // Care, this function might actually return undefined even though size() returns a value > 0
     // Reason is, that there might be delayedItems (checkout QueueOptions.delayUntil)
     public shift(): T | undefined {
         return this.list.shift();
     }
-
 }
